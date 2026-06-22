@@ -2,7 +2,7 @@
 
 A fast, opinionated git worktree manager CLI.
 
-> AI-generated and highly opinionated. This tool makes decisions for you.
+> AI-generated and highly opinionated. 
 
 ## Install
 
