@@ -37,6 +37,7 @@ worktrees (a child process cannot `cd` its parent shell on its own).
 | `wt ls` | List worktrees (current marked). | `wtl` |
 | `wt go [<query>]` | Cd into a worktree by partial name/path match. No arg → fzf picker. | `wtp` |
 | `wt top` | Cd into the main / top worktree (the common dir's worktree). | `cdtw` |
+| `wt shell-init [--shell zsh\|bash] [--rc-file <path>] [--print]` | Detect the current shell and install the `wt()` wrapper into the matching rc file. Idempotent. | (new — replaces manual rc editing) |
 
 ### `wt create <name>`
 
@@ -97,6 +98,64 @@ Only one base flag may be supplied; supplying more than one is an error.
 
 - Resolve the common dir, derive its worktree root (the dir containing
   `.git`), emit it. The shell wrapper cds.
+
+### `wt shell-init [--shell zsh|bash] [--rc-file <path>] [--print]`
+
+Detect the current shell and install the `wt()` wrapper into the matching rc
+file so the automatic-`cd` behavior works without manual editing.
+
+**Shell detection**
+
+- Default: take the basename of `$SHELL` and map it to `zsh` or `bash`.
+- Override with `--shell zsh|bash`. If `$SHELL` is unset and `--shell` is not
+  provided, error with a message telling the user to pass `--shell`.
+- Unsupported shells (anything other than zsh/bash) → error, exit 1.
+
+**RC file resolution**
+
+- zsh → `~/.zshrc`
+- bash → `~/.bashrc`
+- Override with `--rc-file <path>` (absolute or `~`-relative).
+- On macOS with bash, print a one-line note that login shells source
+  `.bash_profile`, not `.bashrc`, so the user should `source ~/.bashrc` from
+  their profile. We do not write to `.bash_profile` automatically.
+
+**Idempotent install**
+
+The wrapper is written inside marker comments so re-runs upgrade rather than
+duplicate:
+
+```sh
+# >>> wt init >>>
+wt() {
+  local cdfile; cdfile=$(mktemp -t wt.cd)
+  WT_CD_FILE=$cdfile command wt "$@"
+  local rc=$?
+  [[ -s $cdfile ]] && cd "$(cat "$cdfile")"
+  rm -f "$cdfile"
+  return $rc
+}
+# <<< wt init <<<
+```
+
+- If the markers already exist in the target file, the block between them
+  (inclusive) is replaced with the current version of the wrapper.
+- If the markers are absent, the block is appended to the end of the file
+  (file is created if it does not exist).
+- Re-running after a `wt` upgrade refreshes the wrapper in place.
+
+**`--print`**
+
+- Emit only the wrapper function (without markers) to stdout. No file is
+  touched. Intended for `eval "$(wt shell-init --print)"` or users who manage
+  their rc files manually / via a dotfiles manager.
+- `--print` ignores `--shell`, `--rc-file`.
+
+**Exit codes**
+
+- 0 on successful install (or successful print).
+- 1 if the shell cannot be detected and `--shell` was not provided, or if the
+  detected shell is unsupported.
 
 ## Placement & naming
 
@@ -181,6 +240,7 @@ src/
   remove.rs      rm command (fzf selection)
   list.rs        ls command
   go.rs          go + top commands (path emission)
+  shell_init.rs  shell detection, rc-file resolution, idempotent install
   cd.rs          WT_CD_FILE emission helper
   error.rs       error type (anyhow or thiserror)
 ```
@@ -232,8 +292,11 @@ src/
 ## Migration
 
 1. Build and install the binary (`cargo install --path .` or symlink target).
-2. Add the `wt()` wrapper to `~/.zshrc`.
-3. Remove the old `wt`, `wtm`, `wtp`, `wtr`, `wtl`, `cdtw` functions.
+2. Run `wt shell-init` to install the `wt()` wrapper into `~/.zshrc`
+   (or `~/.bashrc`). Re-running is safe and upgrades the wrapper.
+3. Remove the old `wt`, `wtm`, `wtp`, `wtr`, `wtl`, `cdtw` functions
+   (`wt shell-init` does not remove them — clean them up manually so they do
+   not shadow the new wrapper).
 4. Add a `.wt.toml` to any repo where you want the automatic `.env` copy and
    `mise trust`.
 
