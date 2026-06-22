@@ -2,6 +2,11 @@
 name = "wt"
 version = "0.1.0"
 edition = "2024"
+description = "A fast git worktree manager CLI"
+license = "MIT"
+repository = "https://github.com/darek/wt"
+keywords = ["git", "worktree", "cli"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
