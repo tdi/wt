@@ -265,4 +265,25 @@ mod tests {
         let repo = make_repo();
         assert!(!ref_exists("refs/heads/nonexistent", Some(repo.path())));
     }
+
+    // Test helpers — public for use in integration tests
+    pub fn make_repo_for_testing() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let p = dir.path();
+        run(&["init"], Some(p)).unwrap();
+        run(&["config", "user.email", "test@test.com"], Some(p)).unwrap();
+        run(&["config", "user.name", "Test"], Some(p)).unwrap();
+        fs::write(p.join("README.md"), "# test").unwrap();
+        run(&["add", "."], Some(p)).unwrap();
+        run(&["commit", "-m", "init"], Some(p)).unwrap();
+        dir
+    }
+
+    pub fn git_add(p: &Path) {
+        run(&["add", "."], Some(p)).unwrap();
+    }
+
+    pub fn git_commit(p: &Path, msg: &str) {
+        run(&["commit", "-m", msg], Some(p)).unwrap();
+    }
 }
