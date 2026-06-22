@@ -11,11 +11,6 @@ pub fn emit(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Check if $WT_CD_FILE is set (for testing / command dispatch).
-pub fn is_enabled() -> bool {
-    std::env::var("WT_CD_FILE").is_ok()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -38,18 +33,5 @@ mod tests {
         unsafe { std::env::remove_var("WT_CD_FILE") };
         let result = emit(Path::new("/tmp/test"));
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn is_enabled_true_when_set() {
-        unsafe { std::env::set_var("WT_CD_FILE", "/tmp/test") };
-        assert!(is_enabled());
-        unsafe { std::env::remove_var("WT_CD_FILE") };
-    }
-
-    #[test]
-    fn is_enabled_false_when_unset() {
-        unsafe { std::env::remove_var("WT_CD_FILE") };
-        assert!(!is_enabled());
     }
 }

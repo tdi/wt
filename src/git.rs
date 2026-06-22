@@ -79,11 +79,6 @@ pub fn ref_exists(ref_path: &str, cwd: Option<&Path>) -> bool {
     run(&["show-ref", "--verify", "--quiet", ref_path], cwd).is_ok()
 }
 
-/// Check if a worktree path is the main worktree (contains .git as a dir, not a file).
-pub fn is_main_worktree(path: &Path) -> bool {
-    path.join(".git").is_dir()
-}
-
 /// Get the worktree root for a common dir.
 pub fn worktree_root_for_common(common_dir: &Path) -> PathBuf {
     common_dir.parent()
@@ -197,20 +192,6 @@ mod tests {
         let repo = make_repo();
         let branch = current_branch(Some(repo.path())).unwrap();
         assert!(branch == "main" || branch == "master");
-    }
-
-    #[test]
-    fn is_main_worktree_true_for_dir_git() {
-        let repo = make_repo();
-        assert!(is_main_worktree(repo.path()));
-    }
-
-    #[test]
-    fn is_main_worktree_false_for_worktree() {
-        let repo = make_repo();
-        let wt_dir = repo.path().join("wt-feature");
-        run(&["worktree", "add", "-b", "feature", wt_dir.to_str().unwrap()], Some(repo.path())).unwrap();
-        assert!(!is_main_worktree(&wt_dir));
     }
 
     #[test]
