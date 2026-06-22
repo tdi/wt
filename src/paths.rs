@@ -63,4 +63,19 @@ mod tests {
         let target = worktree_target(root, "feat");
         assert_eq!(target, PathBuf::from("/Users/darek/Projects/a-b-feat"));
     }
+
+    #[test]
+    fn strip_suffix_empty() {
+        assert_eq!(strip_suffix(""), "");
+    }
+
+    #[test]
+    fn strip_suffix_trailing_hyphen() {
+        assert_eq!(strip_suffix("a-"), "a");
+    }
+
+    #[test]
+    fn strip_suffix_leading_hyphen() {
+        assert_eq!(strip_suffix("-a"), "");
+    }
 }
