@@ -6,21 +6,23 @@ pub fn run(name: &str, base: Base, force: bool) -> anyhow::Result<()> {
     let source = git::top_level(None)
         .context("not in a git repo")?;
 
-    // 2. Compute target path
-    let target = paths::worktree_target(&source, name);
+    // 2. Load config for prefix and dir
+    let cfg = config::Config::load(&source)?;
 
-    // 3. Resolve base ref
+    // 3. Compute target path
+    let target = paths::worktree_target(&source, name, &cfg.worktree.prefix, &cfg.worktree.dir);
+
+    // 4. Resolve base ref
     let base_ref = base.resolve(Some(&source))?;
 
-    // 4. Create worktree
+    // 5. Create worktree
     git::worktree_add(&target, name, &base_ref, force, Some(&source))
         .context("failed to create worktree")?;
 
-    // 5. Run on-create hooks
-    let cfg = config::Config::load(&source)?;
+    // 6. Run on-create hooks
     hooks::run(&source, &target, &cfg.create);
 
-    // 6. Emit cd target
+    // 7. Emit cd target
     cd::emit(&target)?;
 
     println!("created worktree '{}' at {}", name, target.display());

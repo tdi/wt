@@ -14,6 +14,12 @@ pub fn make_repo() -> tempfile::TempDir {
     dir
 }
 
+/// Canonicalized repo path — matches what git rev-parse --show-toplevel returns.
+/// On macOS, tempfile::TempDir gives /var/folders/... but git gives /private/var/folders/...
+pub fn repo_path(dir: &tempfile::TempDir) -> PathBuf {
+    fs::canonicalize(dir.path()).unwrap_or_else(|_| dir.path().to_path_buf())
+}
+
 pub fn git(cwd: &Path, args: &[&str]) -> String {
     let out = Command::new("git")
         .args(args)
@@ -37,7 +43,12 @@ pub fn wt_fail(args: &[&str]) -> assert_cmd::Command {
 }
 
 pub fn expected_wt_path(repo: &Path, name: &str) -> PathBuf {
-    let parent = repo.parent().unwrap();
     let repo_name = repo.file_name().unwrap().to_str().unwrap();
-    parent.join(format!("{}-{}", repo_name, name))
+    let stripped = match repo_name.rsplit_once('-') {
+        Some((head, _)) => head,
+        None => repo_name,
+    };
+    // Compute absolute path: repo parent + stripped-name
+    let parent = repo.parent().unwrap();
+    parent.join(format!("{}-{}", stripped, name))
 }

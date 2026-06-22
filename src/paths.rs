@@ -9,14 +9,14 @@ pub fn strip_suffix(repo: &str) -> &str {
 }
 
 /// Compose the worktree target path.
-pub fn worktree_target(source_root: &Path, name: &str) -> PathBuf {
-    let parent = source_root.parent().expect("source root has no parent");
+pub fn worktree_target(source_root: &Path, name: &str, prefix: &str, dir: &str) -> PathBuf {
     let repo = source_root
         .file_name()
         .and_then(|s| s.to_str())
         .expect("source root has no filename");
     let stripped = strip_suffix(repo);
-    parent.join(format!("{}-{}", stripped, name))
+    let worktree_name = format!("{}{}-{}", prefix, stripped, name);
+    PathBuf::from(dir).join(worktree_name)
 }
 
 #[cfg(test)]
@@ -46,22 +46,43 @@ mod tests {
     #[test]
     fn worktree_target_basic() {
         let root = Path::new("/Users/darek/Projects/portal-api");
-        let target = worktree_target(root, "feat-auth");
-        assert_eq!(target, PathBuf::from("/Users/darek/Projects/portal-feat-auth"));
+        let target = worktree_target(root, "feat-auth", "", "../");
+        assert_eq!(target, PathBuf::from("../portal-feat-auth"));
     }
 
     #[test]
     fn worktree_target_no_suffix_strip() {
         let root = Path::new("/Users/darek/Projects/infra");
-        let target = worktree_target(root, "tweak");
-        assert_eq!(target, PathBuf::from("/Users/darek/Projects/infra-tweak"));
+        let target = worktree_target(root, "tweak", "", "../");
+        assert_eq!(target, PathBuf::from("../infra-tweak"));
     }
 
     #[test]
     fn worktree_target_multiple_hyphens() {
         let root = Path::new("/Users/darek/Projects/a-b-c");
-        let target = worktree_target(root, "feat");
-        assert_eq!(target, PathBuf::from("/Users/darek/Projects/a-b-feat"));
+        let target = worktree_target(root, "feat", "", "../");
+        assert_eq!(target, PathBuf::from("../a-b-feat"));
+    }
+
+    #[test]
+    fn worktree_target_with_prefix() {
+        let root = Path::new("/Users/darek/Projects/portal-api");
+        let target = worktree_target(root, "feat-auth", "wt-", "../");
+        assert_eq!(target, PathBuf::from("../wt-portal-feat-auth"));
+    }
+
+    #[test]
+    fn worktree_target_custom_dir() {
+        let root = Path::new("/Users/darek/Projects/portal-api");
+        let target = worktree_target(root, "feat-auth", "", "../worktrees/");
+        assert_eq!(target, PathBuf::from("../worktrees/portal-feat-auth"));
+    }
+
+    #[test]
+    fn worktree_target_prefix_and_dir() {
+        let root = Path::new("/Users/darek/Projects/portal-api");
+        let target = worktree_target(root, "feat-auth", "wt-", "../worktrees/");
+        assert_eq!(target, PathBuf::from("../worktrees/wt-portal-feat-auth"));
     }
 
     #[test]

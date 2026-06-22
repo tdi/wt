@@ -5,48 +5,52 @@ use std::fs;
 use tempfile::TempDir;
 
 #[test]
-fn create_current_branch() {
+fn mk_current_branch() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
-    wt(&["create", "feat", "-c"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-c"]).current_dir(&rp).assert().success();
 
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert!(wt_path.exists());
     assert!(wt_path.join("README.md").exists());
 }
 
 #[test]
-fn create_remote_main_fails_without_remote() {
+fn mk_remote_main_fails_without_remote() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
-    wt_fail(&["create", "feat"]).current_dir(repo.path()).assert().failure();
+    wt_fail(&["mk", "feat"]).current_dir(&rp).assert().failure();
 }
 
 #[test]
-fn create_local_main() {
+fn mk_local_main() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
-    wt(&["create", "feat", "-l"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-l"]).current_dir(&rp).assert().success();
 
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert!(wt_path.exists());
 }
 
 #[test]
-fn create_with_wt_toml_copies_env() {
+fn mk_with_wt_toml_copies_env() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
     fs::write(
-        repo.path().join(".wt.toml"),
+        rp.join(".wt.toml"),
         "[create]\ncopy = [\".env\", \".env.local\"]",
     )
     .unwrap();
-    fs::write(repo.path().join(".env"), "KEY=value").unwrap();
-    fs::write(repo.path().join(".env.local"), "LOCAL=1").unwrap();
+    fs::write(rp.join(".env"), "KEY=value").unwrap();
+    fs::write(rp.join(".env.local"), "LOCAL=1").unwrap();
 
-    wt(&["create", "feat", "-l"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-l"]).current_dir(&rp).assert().success();
 
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert_eq!(
         fs::read_to_string(wt_path.join(".env")).unwrap(),
         "KEY=value"
@@ -58,63 +62,68 @@ fn create_with_wt_toml_copies_env() {
 }
 
 #[test]
-fn create_with_wt_toml_run_hook() {
+fn mk_with_wt_toml_run_hook() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
     fs::write(
-        repo.path().join(".wt.toml"),
+        rp.join(".wt.toml"),
         "[create]\nrun = [\"touch hook-ran\"]",
     )
     .unwrap();
 
-    wt(&["create", "feat", "-l"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-l"]).current_dir(&rp).assert().success();
 
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert!(wt_path.join("hook-ran").exists());
 }
 
 #[test]
 fn ls_shows_worktrees() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
-    wt(&["create", "feat", "-l"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-l"]).current_dir(&rp).assert().success();
 
-    let output = wt(&["ls"]).current_dir(repo.path()).output().unwrap();
+    let output = wt(&["ls"]).current_dir(&rp).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert!(stdout.contains(wt_path.to_str().unwrap()));
 }
 
 #[test]
 fn rm_removes_worktree() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
-    wt(&["create", "feat", "-l"]).current_dir(repo.path()).assert().success();
-    wt(&["rm", "feat"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-l"]).current_dir(&rp).assert().success();
+    wt(&["rm", "feat"]).current_dir(&rp).assert().success();
 
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert!(!wt_path.exists());
 }
 
 #[test]
 fn rm_refuses_main_worktree() {
     let repo = make_repo();
-    wt_fail(&["rm", "."]).current_dir(repo.path()).assert().failure();
+    let rp = repo_path(&repo);
+    wt_fail(&["rm", "."]).current_dir(&rp).assert().failure();
 }
 
 #[test]
 fn go_query_resolves() {
     let repo = make_repo();
+    let rp = repo_path(&repo);
 
-    wt(&["create", "feat", "-l"]).current_dir(repo.path()).assert().success();
+    wt(&["mk", "feat", "-l"]).current_dir(&rp).assert().success();
 
     let cdfile = tempfile::NamedTempFile::new().unwrap();
     unsafe { std::env::set_var("WT_CD_FILE", cdfile.path()); }
 
-    wt(&["go", "feat"]).current_dir(repo.path()).assert().success();
+    wt(&["go", "feat"]).current_dir(&rp).assert().success();
 
     let content = fs::read_to_string(cdfile.path()).unwrap();
-    let wt_path = expected_wt_path(repo.path(), "feat");
+    let wt_path = expected_wt_path(&rp, "feat");
     assert!(content.contains(wt_path.to_str().unwrap()));
 
     unsafe { std::env::remove_var("WT_CD_FILE"); }

@@ -7,7 +7,7 @@ mod cd;
 mod git;
 mod base;
 mod hooks;
-mod create;
+mod mk;
 mod list;
 mod go;
 mod remove;
@@ -22,8 +22,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create a worktree
-    Create {
+    /// Make a worktree
+    Mk {
         /// New branch / worktree name
         name: String,
         /// Base on origin/default branch (default)
@@ -74,9 +74,9 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Create { name, remote_main, local_main, current, force } => {
+        Commands::Mk { name, remote_main, local_main, current, force } => {
             let base = base::resolve_flag(remote_main, local_main, current)?;
-            create::run(&name, base, force)?;
+            mk::run(&name, base, force)?;
         }
         Commands::Rm { query, force } => remove::run(query.as_deref(), force)?,
         Commands::Ls => list::run()?,
