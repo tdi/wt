@@ -91,6 +91,74 @@ pub fn worktree_root_for_common(common_dir: &Path) -> PathBuf {
         .to_path_buf()
 }
 
+/// A parsed worktree entry.
+#[derive(Debug, Clone)]
+pub struct Worktree {
+    pub path: PathBuf,
+    pub branch: Option<String>,
+    pub head: String,
+}
+
+/// Parse `git worktree list --porcelain` output.
+pub fn worktree_list(cwd: Option<&Path>) -> anyhow::Result<Vec<Worktree>> {
+    let out = run(&["worktree", "list", "--porcelain"], cwd)?;
+    let mut worktrees = Vec::new();
+    let mut current: Option<Worktree> = None;
+
+    for line in out.lines() {
+        if let Some(path) = line.strip_prefix("worktree ") {
+            if let Some(wt) = current.take() {
+                worktrees.push(wt);
+            }
+            current = Some(Worktree {
+                path: PathBuf::from(path),
+                branch: None,
+                head: String::new(),
+            });
+        } else if let Some(branch) = line.strip_prefix("branch ") {
+            if let Some(ref mut wt) = current {
+                wt.branch = Some(branch.to_string());
+            }
+        } else if let Some(head) = line.strip_prefix("HEAD ") {
+            if let Some(ref mut wt) = current {
+                wt.head = head.to_string();
+            }
+        }
+    }
+    if let Some(wt) = current.take() {
+        worktrees.push(wt);
+    }
+    Ok(worktrees)
+}
+
+/// Add a worktree.
+pub fn worktree_add(
+    target: &Path,
+    branch: &str,
+    base_ref: &str,
+    force: bool,
+    cwd: Option<&Path>,
+) -> anyhow::Result<()> {
+    let target_str = target.to_str().context("target path is not valid UTF-8")?;
+    let mut args = vec!["worktree", "add", target_str, "-b", branch, base_ref];
+    if force {
+        args.insert(3, "--force");
+    }
+    run(&args, cwd)?;
+    Ok(())
+}
+
+/// Remove a worktree.
+pub fn worktree_remove(path: &Path, force: bool, cwd: Option<&Path>) -> anyhow::Result<()> {
+    let path_str = path.to_str().context("path is not valid UTF-8")?;
+    let mut args = vec!["worktree", "remove", path_str];
+    if force {
+        args.push("--force");
+    }
+    run(&args, cwd)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,5 +219,37 @@ mod tests {
         let cd = common_dir(Some(repo.path())).unwrap();
         let root = worktree_root_for_common(&cd);
         assert_eq!(root, repo.path());
+    }
+
+    #[test]
+    fn worktree_list_shows_main() {
+        let repo = make_repo();
+        let wts = worktree_list(Some(repo.path())).unwrap();
+        assert_eq!(wts.len(), 1);
+        assert_eq!(
+            fs::canonicalize(&wts[0].path).unwrap(),
+            fs::canonicalize(repo.path()).unwrap()
+        );
+    }
+
+    #[test]
+    fn worktree_add_and_list() {
+        let repo = make_repo();
+        let wt_dir = repo.path().join("wt-add-list");
+        worktree_add(&wt_dir, "feature", "HEAD", false, Some(repo.path())).unwrap();
+        let wts = worktree_list(Some(repo.path())).unwrap();
+        assert_eq!(wts.len(), 2);
+        let branches: Vec<_> = wts.iter().filter_map(|w| w.branch.clone()).collect();
+        assert!(branches.contains(&"refs/heads/feature".to_string()));
+    }
+
+    #[test]
+    fn worktree_remove_removes_it() {
+        let repo = make_repo();
+        let wt_dir = repo.path().join("wt-remove");
+        worktree_add(&wt_dir, "feature", "HEAD", false, Some(repo.path())).unwrap();
+        worktree_remove(&wt_dir, false, Some(repo.path())).unwrap();
+        let wts = worktree_list(Some(repo.path())).unwrap();
+        assert_eq!(wts.len(), 1);
     }
 }
