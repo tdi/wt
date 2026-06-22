@@ -76,7 +76,8 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Create { name, remote_main, local_main, current, force } => {
             let base = base::resolve_flag(remote_main, local_main, current)?;
-            create::run(&name, base, force)?;
+            let git_ref = base.resolve(None)?;
+            create::run(&name, git_ref, force)?;
         }
         Commands::Rm { query, force } => remove::run(query.as_deref(), force)?,
         Commands::Ls => list::run()?,
