@@ -252,4 +252,17 @@ mod tests {
         let wts = worktree_list(Some(repo.path())).unwrap();
         assert_eq!(wts.len(), 1);
     }
+
+    #[test]
+    fn ref_exists_for_existing_ref() {
+        let repo = make_repo();
+        assert!(ref_exists("refs/heads/main", Some(repo.path()))
+            || ref_exists("refs/heads/master", Some(repo.path())));
+    }
+
+    #[test]
+    fn ref_exists_false_for_nonexistent() {
+        let repo = make_repo();
+        assert!(!ref_exists("refs/heads/nonexistent", Some(repo.path())));
+    }
 }
