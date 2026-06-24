@@ -27,14 +27,17 @@ enum Commands {
         /// New branch / worktree name
         name: String,
         /// Base on origin/default branch (default)
-        #[arg(short, long, conflicts_with_all = &["local_main", "current"])]
+        #[arg(short, long, conflicts_with_all = &["local_main", "current", "branch"])]
         remote_main: bool,
         /// Base on local default branch
-        #[arg(short, long, conflicts_with_all = &["remote_main", "current"])]
+        #[arg(short, long, conflicts_with_all = &["remote_main", "current", "branch"])]
         local_main: bool,
         /// Base on current branch
-        #[arg(short, long, conflicts_with_all = &["remote_main", "local_main"])]
+        #[arg(short, long, conflicts_with_all = &["remote_main", "local_main", "branch"])]
         current: bool,
+        /// Base on a specific local branch
+        #[arg(short, long, conflicts_with_all = &["remote_main", "local_main", "current"])]
+        branch: Option<String>,
         /// Force creation
         #[arg(short, long)]
         force: bool,
@@ -74,8 +77,8 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Mk { name, remote_main, local_main, current, force } => {
-            let base = base::resolve_flag(remote_main, local_main, current)?;
+        Commands::Mk { name, remote_main, local_main, current, branch, force } => {
+            let base = base::resolve_flag(remote_main, local_main, current, branch.as_deref())?;
             mk::run(&name, base, force)?;
         }
         Commands::Rm { query, force } => remove::run(query.as_deref(), force)?,

@@ -2,22 +2,37 @@ use crate::git;
 use anyhow::{bail, Context};
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Base {
     RemoteMain,
     LocalMain,
     Current,
+    Branch(String),
 }
 
 /// Resolve the flags into a Base. Default is RemoteMain if none set.
-pub fn resolve_flag(remote_main: bool, local_main: bool, current: bool) -> anyhow::Result<Base> {
-    let count = [remote_main, local_main, current].iter().filter(|&&b| b).count();
+pub fn resolve_flag(
+    remote_main: bool,
+    local_main: bool,
+    current: bool,
+    branch: Option<&str>,
+) -> anyhow::Result<Base> {
+    let count = [remote_main, local_main, current, branch.is_some()]
+        .iter()
+        .filter(|&&b| b)
+        .count();
     if count > 1 {
-        bail!("only one base flag may be specified (-r, -m, -c)");
+        bail!("only one base flag may be specified (-r, -m, -c, -b)");
     }
-    if local_main { Ok(Base::LocalMain) }
-    else if current { Ok(Base::Current) }
-    else { Ok(Base::RemoteMain) }
+    if let Some(name) = branch {
+        Ok(Base::Branch(name.to_string()))
+    } else if local_main {
+        Ok(Base::LocalMain)
+    } else if current {
+        Ok(Base::Current)
+    } else {
+        Ok(Base::RemoteMain)
+    }
 }
 
 impl Base {
@@ -27,6 +42,7 @@ impl Base {
             Base::RemoteMain => resolve_remote_main(cwd),
             Base::LocalMain => resolve_local_main(cwd),
             Base::Current => git::current_branch(cwd),
+            Base::Branch(name) => Ok(name.clone()),
         }
     }
 }
